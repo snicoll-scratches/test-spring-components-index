@@ -1,0 +1,7 @@
+= Spring Components Index
+
+This simple project provides some raw performance numbers between classpath scanning and
+the use of dedicated `spring.components` index.
+
+NOTE: This is work in progress, you need to build
+https://github.com/snicoll/spring-framework/tree/indexer[this branch] of Spring Framework locally first.
