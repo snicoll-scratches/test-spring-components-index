@@ -9,7 +9,6 @@
 	</parent>
 	<artifactId>sample-components-500</artifactId>
 	<packaging>jar</packaging>
-
 	<name>Sample components :: 500</name>
 
 	<dependencies>

@@ -19,6 +19,7 @@
 	</properties>
 
 	<modules>
+		<module>sample-app</module>
 		<module>sample-components-200</module>
 		<module>sample-components-500</module>
 		<module>sample-entities-200</module>
