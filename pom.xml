@@ -23,7 +23,20 @@
 		<module>sample-components-200</module>
 		<module>sample-components-500</module>
 		<module>sample-entities-200</module>
+		<module>sample-project-1400</module>
+		<module>sample-project-5400</module>
 		<module>test-candidates-index</module>
 	</modules>
+
+	<repositories>
+		<repository>
+			<id>spring-snapshots</id>
+			<name>Spring Snapshots</name>
+			<url>https://repo.spring.io/snapshot</url>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
 
 </project>
