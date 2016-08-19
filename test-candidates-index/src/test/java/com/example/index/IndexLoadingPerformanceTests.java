@@ -4,7 +4,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
-import org.springframework.context.index.SpringComponentsIndexLoader;
+import org.springframework.context.index.CandidateComponentsIndexLoader;
 import org.springframework.util.StopWatch;
 
 /**
@@ -18,10 +18,10 @@ public class IndexLoadingPerformanceTests {
 
 	@Test
 	public void loadIndexPerf() {
-		System.out.println(SpringComponentsIndexLoader.COMPONENTS_RESOURCE_LOCATION);
+		System.out.println(CandidateComponentsIndexLoader.COMPONENTS_RESOURCE_LOCATION);
 		StopWatch stopWatch = new StopWatch();
 		stopWatch.start("Load Index");
-		SpringComponentsIndexLoader.loadIndex(null);
+		CandidateComponentsIndexLoader.loadIndex(null);
 		stopWatch.stop();
 		System.out.println("Loading index time --> " + stopWatch.getLastTaskTimeMillis());
 	}

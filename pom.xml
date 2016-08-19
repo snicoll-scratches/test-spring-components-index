@@ -14,7 +14,7 @@
 	<name>Spring Components Index</name>
 
 	<properties>
-		<spring.version>5.0.0.INDEX-SNAPSHOT</spring.version>
+		<spring.version>5.0.0.BUILD-SNAPSHOT</spring.version>
 		<java.version>1.8</java.version>
 	</properties>
 

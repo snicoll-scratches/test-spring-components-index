@@ -1,9 +1,11 @@
 package com.example.index;
 
+import com.example.index.support.CandidateComponentsTestClassLoader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
+import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.orm.jpa.persistenceunit.DefaultPersistenceUnitManager;
 import org.springframework.util.StopWatch;
 
@@ -20,7 +22,7 @@ public class JpaPerformanceTests {
 	public void scanPerformance() {
 		StopWatch stopWatch = new StopWatch();
 		stopWatch.start("Scan");
-		createPuWithScan("com.example.domain", "org.springframework");
+		createPuWithScan(false, "com.example.domain", "org.springframework");
 		stopWatch.stop();
 		System.out.println("Scan time --> " + stopWatch.getLastTaskTimeMillis());
 	}
@@ -29,21 +31,22 @@ public class JpaPerformanceTests {
 	public void indexPerformance() {
 		StopWatch stopWatch = new StopWatch();
 		stopWatch.start("Index");
-		createPuWithIndex();
+		createPuWithScan(true, "com.example.domain", "org.springframework");
 		stopWatch.stop();
 		System.out.println("Index time --> " + stopWatch.getLastTaskTimeMillis());
 	}
 
 
-	private void createPuWithScan(String... packages) {
+	private void createPuWithScan(boolean useIndex, String... packages) {
 		DefaultPersistenceUnitManager puManager = new DefaultPersistenceUnitManager();
+		if (!useIndex) {
+			puManager.setResourceLoader(new DefaultResourceLoader(
+					CandidateComponentsTestClassLoader.disableIndex(getClass().getClassLoader())));
+		} else {
+			puManager.setResourceLoader(new DefaultResourceLoader(getClass().getClassLoader()));
+		}
 		puManager.setPackagesToScan(packages);
 		puManager.preparePersistenceUnitInfos();
 	}
 
-	private void createPuWithIndex() {
-		DefaultPersistenceUnitManager puManager = new DefaultPersistenceUnitManager();
-		puManager.setUseIndex(true);
-		puManager.preparePersistenceUnitInfos();
-	}
 }
