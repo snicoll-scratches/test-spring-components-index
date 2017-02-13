@@ -56,6 +56,8 @@ public class ComponentsIndexBenchmark {
 			StandardEnvironment environment = new StandardEnvironment();
 			this.indexProvider = new ClassPathScanningCandidateComponentProvider(false,
 					environment);
+			this.indexProvider.setResourceLoader(
+					new DefaultResourceLoader(getClass().getClassLoader()));
 			this.classpathScanningProvider =
 					new ClassPathScanningCandidateComponentProvider(false, environment);
 			this.classpathScanningProvider.setResourceLoader(new DefaultResourceLoader(
