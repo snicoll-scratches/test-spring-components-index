@@ -139,6 +139,20 @@ public class ComponentsIndexBenchmark {
 				"com.example.service.sample500", "com.example.noise.sample500");
 	}
 
+	@Benchmark
+	public Set<BeanDefinition> classpathProject5400(ScanningState scanningState) {
+		return scan(scanningState.classpathScanningProvider,
+				new AnnotationTypeFilter(Component.class),
+				"com.example.project.sample5400");
+	}
+
+	@Benchmark
+	public Set<BeanDefinition> indexProject5400(ScanningState scanningState) {
+		return scan(scanningState.indexProvider,
+				new AnnotationTypeFilter(Component.class),
+				"com.example.project.sample5400");
+	}
+
 	private Set<BeanDefinition> scan(ClassPathScanningCandidateComponentProvider provider,
 			TypeFilter includeFilter, String... packages) {
 		provider.resetFilters(false);
@@ -156,10 +170,10 @@ public class ComponentsIndexBenchmark {
 		scanningState.setup();
 
 		ComponentsIndexBenchmark bench = new ComponentsIndexBenchmark();
-		Set<BeanDefinition> classpathDefinitions = bench.classpath200Components(scanningState);
+		Set<BeanDefinition> classpathDefinitions = bench.classpathProject5400(scanningState);
 		System.out.println("--> classpath " + classpathDefinitions.size());
 
-		Set<BeanDefinition> indexDefinitions = bench.index200Components(scanningState);
+		Set<BeanDefinition> indexDefinitions = bench.indexProject5400(scanningState);
 		System.out.println("--> index " + indexDefinitions.size());
 	}
 
