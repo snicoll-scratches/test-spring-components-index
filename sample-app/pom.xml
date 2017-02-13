@@ -12,13 +12,6 @@
 	<name>Spring Components Index :: Sample App</name>
 
 	<dependencies>
-		<!-- TODO: temporary, force JPA 2.1 -->
-		<dependency>
-			<groupId>org.hibernate.javax.persistence</groupId>
-			<artifactId>hibernate-jpa-2.1-api</artifactId>
-			<version>1.0.0.Final</version>
-		</dependency>
-
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>

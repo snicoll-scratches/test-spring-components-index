@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2015 the original author or authors.
+ * Copyright 2008-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
-
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.aop.interceptor.ExposeInvocationInterceptor;
 import org.springframework.beans.BeanUtils;
@@ -51,6 +50,8 @@ import org.springframework.data.repository.query.QueryLookupStrategy.Key;
 import org.springframework.data.repository.query.QueryMethod;
 import org.springframework.data.repository.query.RepositoryQuery;
 import org.springframework.data.repository.util.ClassUtils;
+import org.springframework.data.repository.util.ReactiveWrapperConverters;
+import org.springframework.data.repository.util.ReactiveWrappers;
 import org.springframework.data.util.ReflectionUtils;
 import org.springframework.stereotype.Indexed;
 import org.springframework.util.Assert;
@@ -59,9 +60,10 @@ import org.springframework.util.ObjectUtils;
 /**
  * Factory bean to create instances of a given repository interface. Creates a proxy implementing the configured
  * repository interface and apply an advice handing the control to the {@code QueryExecuterMethodInterceptor}. Query
- * detection strategy can be configured by setting {@link Key}.
+ * detection strategy can be configured by setting {@link QueryLookupStrategy.Key}.
  *
  * @author Oliver Gierke
+ * @author Mark Paluch
  */
 @Indexed
 public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, BeanFactoryAware {
@@ -74,7 +76,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 	private final List<RepositoryProxyPostProcessor> postProcessors = new ArrayList<RepositoryProxyPostProcessor>();
 
 	private Class<?> repositoryBaseClass;
-	private Key queryLookupStrategyKey;
+	private QueryLookupStrategy.Key queryLookupStrategyKey;
 	private List<QueryCreationListener<?>> queryPostProcessors = new ArrayList<QueryCreationListener<?>>();
 	private NamedQueries namedQueries = PropertiesBasedNamedQueries.EMPTY;
 	private ClassLoader classLoader = org.springframework.util.ClassUtils.getDefaultClassLoader();
@@ -89,7 +91,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 	/**
 	 * Sets the strategy of how to lookup a query to execute finders.
-	 * 
+	 *
 	 * @param key
 	 */
 	public void setQueryLookupStrategyKey(Key key) {
@@ -98,14 +100,14 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 	/**
 	 * Configures a {@link NamedQueries} instance to be handed to the {@link QueryLookupStrategy} for query creation.
-	 * 
+	 *
 	 * @param namedQueries the namedQueries to set
 	 */
 	public void setNamedQueries(NamedQueries namedQueries) {
 		this.namedQueries = namedQueries == null ? PropertiesBasedNamedQueries.EMPTY : namedQueries;
 	}
 
-	/* 
+	/*
 	 * (non-Javadoc)
 	 * @see org.springframework.beans.factory.BeanClassLoaderAware#setBeanClassLoader(java.lang.ClassLoader)
 	 */
@@ -114,7 +116,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 		this.classLoader = classLoader == null ? org.springframework.util.ClassUtils.getDefaultClassLoader() : classLoader;
 	}
 
-	/* 
+	/*
 	 * (non-Javadoc)
 	 * @see org.springframework.beans.factory.BeanFactoryAware#setBeanFactory(org.springframework.beans.factory.BeanFactory)
 	 */
@@ -125,7 +127,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 	/**
 	 * Sets the {@link EvaluationContextProvider} to be used to evaluate SpEL expressions in manually defined queries.
-	 * 
+	 *
 	 * @param evaluationContextProvider can be {@literal null}, defaults to
 	 *          {@link DefaultEvaluationContextProvider#INSTANCE}.
 	 */
@@ -137,7 +139,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 	/**
 	 * Configures the repository base class to use when creating the repository proxy. If not set, the factory will use
 	 * the type returned by {@link #getRepositoryBaseClass(RepositoryMetadata)} by default.
-	 * 
+	 *
 	 * @param repositoryBaseClass the repository base class to back the repository proxy, can be {@literal null}.
 	 * @since 1.11
 	 */
@@ -148,12 +150,12 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 	/**
 	 * Adds a {@link QueryCreationListener} to the factory to plug in functionality triggered right after creation of
 	 * {@link RepositoryQuery} instances.
-	 * 
+	 *
 	 * @param listener
 	 */
 	public void addQueryCreationListener(QueryCreationListener<?> listener) {
 
-		Assert.notNull(listener);
+		Assert.notNull(listener, "Listener must not be null!");
 		this.queryPostProcessors.add(listener);
 	}
 
@@ -161,7 +163,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 	 * Adds {@link RepositoryProxyPostProcessor}s to the factory to allow manipulation of the {@link ProxyFactory} before
 	 * the proxy gets created. Note that the {@link QueryExecutorMethodInterceptor} will be added to the proxy
 	 * <em>after</em> the {@link RepositoryProxyPostProcessor}s are considered.
-	 * 
+	 *
 	 * @param processor
 	 */
 	public void addRepositoryProxyPostProcessor(RepositoryProxyPostProcessor processor) {
@@ -172,7 +174,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 	/**
 	 * Returns a repository instance for the given interface.
-	 * 
+	 *
 	 * @param <T>
 	 * @param repositoryInterface
 	 * @return
@@ -184,7 +186,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 	/**
 	 * Returns a repository instance for the given interface backed by an instance providing implementation logic for
 	 * custom logic.
-	 * 
+	 *
 	 * @param <T>
 	 * @param repositoryInterface
 	 * @param customImplementation
@@ -206,7 +208,8 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 		result.setTarget(target);
 		result.setInterfaces(new Class[] { repositoryInterface, Repository.class });
 
-		result.addAdvice(ExposeInvocationInterceptor.INSTANCE);
+		result.addAdvice(SurroundingTransactionDetectorMethodInterceptor.INSTANCE);
+		result.addAdvisor(ExposeInvocationInterceptor.ADVISOR);
 
 		if (TRANSACTION_PROXY_TYPE != null) {
 			result.addInterface(TRANSACTION_PROXY_TYPE);
@@ -220,14 +223,18 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 			result.addAdvice(new DefaultMethodInvokingMethodInterceptor());
 		}
 
-		result.addAdvice(new QueryExecutorMethodInterceptor(information, customImplementation, target));
+		result.addAdvice(new QueryExecutorMethodInterceptor(information));
+
+		result.addAdvice(information.isReactiveRepository()
+				? new ConvertingImplementationMethodExecutionInterceptor(information, customImplementation, target)
+				: new ImplementationMethodExecutionInterceptor(information, customImplementation, target));
 
 		return (T) result.getProxy(classLoader);
 	}
 
 	/**
 	 * Returns the {@link RepositoryMetadata} for the given repository interface.
-	 * 
+	 *
 	 * @param repositoryInterface will never be {@literal null}.
 	 * @return
 	 */
@@ -237,7 +244,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 	/**
 	 * Returns the {@link RepositoryInformation} for the given repository interface.
-	 * 
+	 *
 	 * @param metadata
 	 * @param customImplementationClass
 	 * @return
@@ -255,7 +262,10 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 		Class<?> repositoryBaseClass = this.repositoryBaseClass == null ? getRepositoryBaseClass(metadata)
 				: this.repositoryBaseClass;
 
-		repositoryInformation = new DefaultRepositoryInformation(metadata, repositoryBaseClass, customImplementationClass);
+		repositoryInformation = metadata.isReactiveRepository()
+				? new ReactiveRepositoryInformation(metadata, repositoryBaseClass, customImplementationClass)
+				: new DefaultRepositoryInformation(metadata, repositoryBaseClass, customImplementationClass);
+
 		repositoryInformationCache.put(cacheKey, repositoryInformation);
 		return repositoryInformation;
 	}
@@ -266,7 +276,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 	/**
 	 * Returns the {@link EntityInformation} for the given domain class.
-	 * 
+	 *
 	 * @param <T> the entity type
 	 * @param <ID> the id type
 	 * @param domainClass
@@ -276,7 +286,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 	/**
 	 * Create a repository instance as backing for the query proxy.
-	 * 
+	 *
 	 * @param metadata
 	 * @return
 	 */
@@ -285,7 +295,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 	/**
 	 * Returns the base class backing the actual repository instance. Make sure
 	 * {@link #getTargetRepository(RepositoryMetadata)} returns an instance of this class.
-	 * 
+	 *
 	 * @param metadata
 	 * @return
 	 */
@@ -293,7 +303,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 	/**
 	 * Returns the {@link QueryLookupStrategy} for the given {@link Key}.
-	 * 
+	 *
 	 * @deprecated favor {@link #getQueryLookupStrategy(Key, EvaluationContextProvider)}
 	 * @param key can be {@literal null}
 	 * @return the {@link QueryLookupStrategy} to use or {@literal null} if no queries should be looked up.
@@ -304,7 +314,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 	/**
 	 * Returns the {@link QueryLookupStrategy} for the given {@link Key} and {@link EvaluationContextProvider}.
-	 * 
+	 *
 	 * @param key can be {@literal null}.
 	 * @param evaluationContextProvider will never be {@literal null}.
 	 * @return the {@link QueryLookupStrategy} to use or {@literal null} if no queries should be looked up.
@@ -316,7 +326,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 	/**
 	 * Validates the given repository interface as well as the given custom implementation.
-	 * 
+	 *
 	 * @param repositoryInformation
 	 * @param customImplementation
 	 */
@@ -339,7 +349,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 	/**
 	 * Creates a repository of the repository base class defined in the given {@link RepositoryInformation} using
 	 * reflection.
-	 * 
+	 *
 	 * @param information
 	 * @param constructorArguments
 	 * @return
@@ -369,7 +379,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 	/**
 	 * Returns the TransactionProxy type or {@literal null} if not on the classpath.
-	 * 
+	 *
 	 * @return
 	 */
 	private static Class<?> getTransactionProxyType() {
@@ -386,32 +396,22 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 	 * This {@code MethodInterceptor} intercepts calls to methods of the custom implementation and delegates the to it if
 	 * configured. Furthermore it resolves method calls to finders and triggers execution of them. You can rely on having
 	 * a custom repository implementation instance set if this returns true.
-	 * 
+	 *
 	 * @author Oliver Gierke
 	 */
 	public class QueryExecutorMethodInterceptor implements MethodInterceptor {
 
 		private final Map<Method, RepositoryQuery> queries = new ConcurrentHashMap<Method, RepositoryQuery>();
 
-		private final Object customImplementation;
-		private final RepositoryInformation repositoryInformation;
 		private final QueryExecutionResultHandler resultHandler;
-		private final Object target;
 
 		/**
 		 * Creates a new {@link QueryExecutorMethodInterceptor}. Builds a model of {@link QueryMethod}s to be invoked on
 		 * execution of repository interface methods.
 		 */
-		public QueryExecutorMethodInterceptor(RepositoryInformation repositoryInformation, Object customImplementation,
-				Object target) {
-
-			Assert.notNull(repositoryInformation, "RepositoryInformation must not be null!");
-			Assert.notNull(target, "Target must not be null!");
+		public QueryExecutorMethodInterceptor(RepositoryInformation repositoryInformation) {
 
 			this.resultHandler = new QueryExecutionResultHandler();
-			this.repositoryInformation = repositoryInformation;
-			this.customImplementation = customImplementation;
-			this.target = target;
 
 			QueryLookupStrategy lookupStrategy = getQueryLookupStrategy(queryLookupStrategyKey,
 					RepositoryFactorySupport.this.evaluationContextProvider);
@@ -475,14 +475,64 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 			Method method = invocation.getMethod();
 			Object[] arguments = invocation.getArguments();
 
+			if (hasQueryFor(method)) {
+				return queries.get(method).execute(arguments);
+			}
+
+			return invocation.proceed();
+		}
+
+		/**
+		 * Returns whether we know of a query to execute for the given {@link Method};
+		 *
+		 * @param method
+		 * @return
+		 */
+		private boolean hasQueryFor(Method method) {
+			return queries.containsKey(method);
+		}
+	}
+
+	/**
+	 * Method interceptor that calls methods on either the base implementation or the custom repository implementation.
+	 *
+	 * @author Mark Paluch
+	 */
+	public class ImplementationMethodExecutionInterceptor implements MethodInterceptor {
+
+		private final Object customImplementation;
+		private final RepositoryInformation repositoryInformation;
+		private final Object target;
+
+		/**
+		 * Creates a new {@link QueryExecutorMethodInterceptor}. Builds a model of {@link QueryMethod}s to be invoked on
+		 * execution of repository interface methods.
+		 */
+		public ImplementationMethodExecutionInterceptor(RepositoryInformation repositoryInformation,
+				Object customImplementation, Object target) {
+
+			Assert.notNull(repositoryInformation, "RepositoryInformation must not be null!");
+			Assert.notNull(target, "Target must not be null!");
+
+			this.repositoryInformation = repositoryInformation;
+			this.customImplementation = customImplementation;
+			this.target = target;
+
+		}
+
+		/* (non-Javadoc)
+		 * @see org.aopalliance.intercept.MethodInterceptor#invoke(org.aopalliance.intercept.MethodInvocation)
+		 */
+		@Override
+		public Object invoke(MethodInvocation invocation) throws Throwable {
+
+			Method method = invocation.getMethod();
+			Object[] arguments = invocation.getArguments();
+
 			if (isCustomMethodInvocation(invocation)) {
 
 				Method actualMethod = repositoryInformation.getTargetClassMethod(method);
 				return executeMethodOn(customImplementation, actualMethod, arguments);
-			}
-
-			if (hasQueryFor(method)) {
-				return queries.get(method).execute(arguments);
 			}
 
 			// Lookup actual method as it might be redeclared in the interface
@@ -493,14 +543,14 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 		/**
 		 * Executes the given method on the given target. Correctly unwraps exceptions not caused by the reflection magic.
-		 * 
+		 *
 		 * @param target
 		 * @param method
 		 * @param parameters
 		 * @return
 		 * @throws Throwable
 		 */
-		private Object executeMethodOn(Object target, Method method, Object[] parameters) throws Throwable {
+		protected Object executeMethodOn(Object target, Method method, Object[] parameters) throws Throwable {
 
 			try {
 				return method.invoke(target, parameters);
@@ -512,19 +562,9 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 		}
 
 		/**
-		 * Returns whether we know of a query to execute for the given {@link Method};
-		 * 
-		 * @param method
-		 * @return
-		 */
-		private boolean hasQueryFor(Method method) {
-			return queries.containsKey(method);
-		}
-
-		/**
 		 * Returns whether the given {@link MethodInvocation} is considered to be targeted as an invocation of a custom
 		 * method.
-		 * 
+		 *
 		 * @param method
 		 * @return
 		 */
@@ -539,9 +579,68 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 	}
 
 	/**
+	 * Method interceptor that converts parameters before invoking a method.
+	 *
+	 * @author Mark Paluch
+	 */
+	public class ConvertingImplementationMethodExecutionInterceptor extends ImplementationMethodExecutionInterceptor {
+
+		/**
+		 * @param repositoryInformation
+		 * @param customImplementation
+		 * @param target
+		 */
+		public ConvertingImplementationMethodExecutionInterceptor(RepositoryInformation repositoryInformation,
+				Object customImplementation, Object target) {
+
+			super(repositoryInformation, customImplementation, target);
+		}
+
+		/* (non-Javadoc)
+		 * @see org.springframework.data.repository.core.support.RepositoryFactorySupport.ImplementationMethodExecutionInterceptor#executeMethodOn(java.lang.Object, java.lang.reflect.Method, java.lang.Object[])
+		 */
+		@Override
+		protected Object executeMethodOn(Object target, Method method, Object[] parameters) throws Throwable {
+			return super.executeMethodOn(target, method, convertParameters(method.getParameterTypes(), parameters));
+		}
+
+		/**
+		 * @param parameterTypes
+		 * @param parameters
+		 * @return
+		 */
+		private Object[] convertParameters(Class<?>[] parameterTypes, Object[] parameters) {
+
+			if (parameters.length == 0) {
+				return parameters;
+			}
+
+			Object[] result = new Object[parameters.length];
+
+			for (int i = 0; i < parameters.length; i++) {
+
+				if (parameters[i] == null) {
+					continue;
+				}
+
+				if (!parameterTypes[i].isAssignableFrom(parameters[i].getClass()) && ReactiveWrappers.isAvailable()
+						&& ReactiveWrapperConverters.canConvert(parameters[i].getClass(), parameterTypes[i])) {
+
+					result[i] = ReactiveWrapperConverters.toWrapper(parameters[i], parameterTypes[i]);
+				} else {
+					result[i] = parameters[i];
+				}
+
+			}
+
+			return result;
+		}
+	}
+
+	/**
 	 * {@link QueryCreationListener} collecting the {@link QueryMethod}s created for all query methods of the repository
 	 * interface.
-	 * 
+	 *
 	 * @author Oliver Gierke
 	 */
 	private static class QueryCollectingQueryCreationListener implements QueryCreationListener<RepositoryQuery> {
@@ -550,7 +649,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 		/**
 		 * Returns all {@link QueryMethod}s.
-		 * 
+		 *
 		 * @return
 		 */
 		public List<QueryMethod> getQueryMethods() {
@@ -567,7 +666,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 
 	/**
 	 * Simple value object to build up keys to cache {@link RepositoryInformation} instances.
-	 * 
+	 *
 	 * @author Oliver Gierke
 	 */
 	private static class RepositoryInformationCacheKey {
@@ -578,7 +677,7 @@ public abstract class RepositoryFactorySupport implements BeanClassLoaderAware, 
 		/**
 		 * Creates a new {@link RepositoryInformationCacheKey} for the given {@link RepositoryMetadata} and cuytom
 		 * implementation type.
-		 * 
+		 *
 		 * @param repositoryInterfaceName must not be {@literal null}.
 		 * @param customImplementationClassName
 		 */
