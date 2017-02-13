@@ -23,8 +23,10 @@
 		<module>sample-components-200</module>
 		<module>sample-components-500</module>
 		<module>sample-entities-200</module>
+		<module>sample-noise-500</module>
 		<module>sample-project-1400</module>
 		<module>sample-project-5400</module>
+		<module>spring-context-indexer-benchmark</module>
 		<module>test-candidates-index</module>
 	</modules>
 
@@ -43,6 +45,11 @@
 			<dependency>
 				<groupId>com.example</groupId>
 				<artifactId>sample-entities-200</artifactId>
+				<version>0.1.0.BUILD-SNAPSHOT</version>
+			</dependency>
+			<dependency>
+				<groupId>com.example</groupId>
+				<artifactId>sample-noise-500</artifactId>
 				<version>0.1.0.BUILD-SNAPSHOT</version>
 			</dependency>
 			<dependency>
