@@ -20,12 +20,15 @@ import java.util.Set;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
+import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -40,6 +43,9 @@ import org.springframework.stereotype.Component;
  *
  * @author Stephane Nicoll
  */
+@Measurement(iterations = 1)
+@Warmup(iterations = 0)
+@Fork(value = 20, warmups = 0)
 @BenchmarkMode(Mode.AverageTime)
 public class ComponentsIndexBenchmark {
 
